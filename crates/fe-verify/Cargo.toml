@@ -1,0 +1,15 @@
+[package]
+name = "fe-verify"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fe-common = { path = "../fe-common" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+which = "7"
+async-trait = "0.1"
+regex = "1"

@@ -1,0 +1,28 @@
+[package]
+name = "ast-surgeon-lang"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ast-surgeon-core = { path = "../ast-surgeon-core" }
+tree-sitter.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[features]
+default = ["typescript", "javascript", "css"]
+typescript = ["dep:tree-sitter-typescript"]
+javascript = ["dep:tree-sitter-javascript"]
+css = ["dep:tree-sitter-css"]
+
+[dependencies.tree-sitter-typescript]
+version = "0.23"
+optional = true
+
+[dependencies.tree-sitter-javascript]
+version = "0.23"
+optional = true
+
+[dependencies.tree-sitter-css]
+version = "0.23"
+optional = true

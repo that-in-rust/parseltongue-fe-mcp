@@ -1,0 +1,15 @@
+[package]
+name = "ast-surgeon-wasm"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ast-surgeon-core = { path = "../ast-surgeon-core" }
+ast-surgeon-lang = { path = "../ast-surgeon-lang" }
+wasm-bindgen = "0.2"
+serde.workspace = true
+serde_json.workspace = true
+console_error_panic_hook = "0.1"

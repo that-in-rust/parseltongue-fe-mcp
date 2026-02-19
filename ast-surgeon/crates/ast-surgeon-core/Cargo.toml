@@ -1,0 +1,13 @@
+[package]
+name = "ast-surgeon-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tree-sitter.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tree-sitter-typescript = "0.23"
