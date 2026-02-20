@@ -11,10 +11,13 @@ path = "src/main.rs"
 fe-batch = { path = "../fe-batch" }
 fe-verify = { path = "../fe-verify" }
 fe-common = { path = "../fe-common" }
+ast-surgeon-core = { path = "../../ast-surgeon/crates/ast-surgeon-core" }
+ast-surgeon-lang = { path = "../../ast-surgeon/crates/ast-surgeon-lang" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+tree-sitter = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 async-trait = "0.1"

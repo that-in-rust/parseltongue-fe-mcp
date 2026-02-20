@@ -1,3 +1,5 @@
+pub mod batch;
+pub mod surgeon;
 pub mod verify;
 
 use crate::mcp::{ToolCallResult, ToolDefinition};
@@ -21,6 +23,8 @@ impl ToolRegistry {
     pub fn new(project_root: &Path) -> Self {
         let mut tools: Vec<Box<dyn Tool>> = Vec::new();
         tools.push(Box::new(verify::VerifyTool::new(project_root)));
+        tools.push(Box::new(batch::BatchTool::new(project_root)));
+        tools.push(Box::new(surgeon::SurgeonTool::new()));
         Self { tools }
     }
 

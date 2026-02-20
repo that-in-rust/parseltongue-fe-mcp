@@ -1,0 +1,77 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.happycoder0011/fe-tools",
+  "description": "MCP server giving AI coding agents structured understanding of frontend codebases. Three tools — fe_verify (lint/types/tests), fe_batch (atomic multi-file edits), fe_surgeon (AST-level code operations) — replacing dozens of raw terminal commands with structured JSON.",
+  "repository": {
+    "url": "https://github.com/happycoder0011/fe-tools",
+    "source": "github"
+  },
+  "version_detail": {
+    "version": "0.1.0"
+  },
+  "packages": [
+    {
+      "registry_type": "github-releases",
+      "name": "fe-tools-aarch64-apple-darwin",
+      "version": "0.1.0",
+      "environment": {
+        "os": ["macos"],
+        "arch": ["arm64"]
+      },
+      "runtime": {
+        "type": "binary",
+        "command": {
+          "name": "fe-tools",
+          "args": ["serve", "--project-root", "."]
+        }
+      },
+      "transport": [
+        {
+          "type": "stdio"
+        }
+      ]
+    },
+    {
+      "registry_type": "github-releases",
+      "name": "fe-tools-x86_64-apple-darwin",
+      "version": "0.1.0",
+      "environment": {
+        "os": ["macos"],
+        "arch": ["x86_64"]
+      },
+      "runtime": {
+        "type": "binary",
+        "command": {
+          "name": "fe-tools",
+          "args": ["serve", "--project-root", "."]
+        }
+      },
+      "transport": [
+        {
+          "type": "stdio"
+        }
+      ]
+    },
+    {
+      "registry_type": "github-releases",
+      "name": "fe-tools-x86_64-unknown-linux-gnu",
+      "version": "0.1.0",
+      "environment": {
+        "os": ["linux"],
+        "arch": ["x86_64"]
+      },
+      "runtime": {
+        "type": "binary",
+        "command": {
+          "name": "fe-tools",
+          "args": ["serve", "--project-root", "."]
+        }
+      },
+      "transport": [
+        {
+          "type": "stdio"
+        }
+      ]
+    }
+  ]
+}
