@@ -3,11 +3,17 @@ target/
 **/*.rs.bk
 *.pdb
 
+# Node (test fixtures / frontend projects)
+node_modules/
+*.tsbuildinfo
+
 # OS
 .DS_Store
+Thumbs.db
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+*~

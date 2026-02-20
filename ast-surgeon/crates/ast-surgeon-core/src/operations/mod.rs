@@ -1,6 +1,12 @@
 //! Operation vocabulary and execution trait.
 
+pub mod extract;
+pub mod imports;
+pub mod make_async;
 pub mod rename_symbol;
+pub mod signature;
+pub mod update_paths;
+pub mod wrap;
 
 use crate::edit::TextEdit;
 use serde::{Deserialize, Serialize};
@@ -85,11 +91,117 @@ pub enum Operation {
         #[serde(default)]
         scope: Option<String>,
     },
-    // Future operations will be added here as they are implemented.
-    // AddImport { ... },
-    // RemoveImport { ... },
-    // AddProp { ... },
-    // etc.
+    AddImport {
+        #[serde(default)]
+        file: Option<String>,
+        /// Module path, e.g. "react" or "./utils".
+        source: String,
+        /// Named specifiers, e.g. ["useState", "useEffect"].
+        #[serde(default)]
+        specifiers: Vec<String>,
+        /// Default import name, e.g. "React".
+        #[serde(default)]
+        default_import: Option<String>,
+        /// If true, generates `import type { ... }`.
+        #[serde(default)]
+        type_only: bool,
+    },
+    RemoveImport {
+        #[serde(default)]
+        file: Option<String>,
+        /// Module path to remove from.
+        source: String,
+        /// Specific specifiers to remove. Empty = remove entire import.
+        #[serde(default)]
+        specifiers: Vec<String>,
+    },
+    UpdateImportPaths {
+        #[serde(default)]
+        file: Option<String>,
+        /// Old module path to match.
+        old_path: String,
+        /// New module path to replace with.
+        new_path: String,
+        /// "exact" or "prefix". Default: "exact".
+        #[serde(default = "default_match_mode")]
+        match_mode: String,
+    },
+    AddParameter {
+        #[serde(default)]
+        file: Option<String>,
+        /// Name of the function to modify.
+        function_name: String,
+        /// Parameter name to add.
+        param_name: String,
+        /// Optional TypeScript type annotation.
+        #[serde(default)]
+        param_type: Option<String>,
+        /// Optional default value expression.
+        #[serde(default)]
+        default_value: Option<String>,
+        /// Position: "first", "last", or a 0-based index. Default: "last".
+        #[serde(default = "default_position")]
+        position: String,
+    },
+    RemoveParameter {
+        #[serde(default)]
+        file: Option<String>,
+        /// Name of the function to modify.
+        function_name: String,
+        /// Parameter name to remove.
+        param_name: String,
+    },
+    MakeAsync {
+        #[serde(default)]
+        file: Option<String>,
+        /// Name of the function to make async.
+        function_name: String,
+    },
+    WrapInBlock {
+        #[serde(default)]
+        file: Option<String>,
+        /// First line to wrap (1-indexed).
+        start_line: usize,
+        /// Last line to wrap (1-indexed, inclusive).
+        end_line: usize,
+        /// Wrapper kind: "if", "try_catch", "for_of", "block".
+        wrap_kind: String,
+        /// Condition for if, catch param for try-catch, etc.
+        #[serde(default)]
+        condition: Option<String>,
+        /// For for-of: iteration variable name.
+        #[serde(default)]
+        item: Option<String>,
+        /// For for-of: iterable expression.
+        #[serde(default)]
+        iterable: Option<String>,
+    },
+    ExtractToVariable {
+        #[serde(default)]
+        file: Option<String>,
+        /// The exact expression text to extract.
+        expression: String,
+        /// Name for the new variable.
+        variable_name: String,
+        /// "const" or "let". Default: "const".
+        #[serde(default = "default_var_kind")]
+        var_kind: String,
+        /// Optional type annotation.
+        #[serde(default)]
+        type_annotation: Option<String>,
+    },
+}
+
+fn default_var_kind() -> String {
+    "const".to_string()
+}
+
+fn default_match_mode() -> String {
+    "exact".to_string()
+}
+
+fn default_position() -> String {
+    "last".to_string()
 }
 
 /// Trait for computing text edits from a parse tree.

@@ -37,6 +37,18 @@ pub struct Transaction<State = Pending> {
     _state: PhantomData<State>,
 }
 
+impl<State> std::fmt::Debug for Transaction<State> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Transaction")
+            .field("project_root", &self.project_root)
+            .field("edits_count", &self.edits.len())
+            .field("creates_count", &self.creates.len())
+            .field("verify", &self.verify)
+            .field("rollback_on_failure", &self.rollback_on_failure)
+            .finish()
+    }
+}
+
 // ── Pending → Staged ───────────────────────────────────────────────
 
 impl Transaction<Pending> {
@@ -386,7 +398,7 @@ mod tests {
         let input = make_input(
             vec![EditOperation {
                 file: "file.ts".to_string(),
-                content: Some("committed").to_string(),
+                content: Some("committed".to_string()),
                 operations: None,
             }],
             vec![],

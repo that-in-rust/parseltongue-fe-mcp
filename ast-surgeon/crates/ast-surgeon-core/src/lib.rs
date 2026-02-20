@@ -34,7 +34,7 @@ pub fn execute_operations(
 
     // Compute edits for each operation
     let mut all_edits: Vec<TextEdit> = Vec::new();
-    let mut all_warnings: Vec<String> = Vec::new();
+    let all_warnings: Vec<String> = Vec::new();
 
     for op in ops {
         let executable = operation_to_executable(op)?;
@@ -107,5 +107,128 @@ fn operation_to_executable(op: &Operation) -> Result<Box<dyn Executable>, Operat
             to.clone(),
             scope.clone(),
         ))),
+        Operation::AddImport {
+            source,
+            specifiers,
+            default_import,
+            type_only,
+            ..
+        } => Ok(Box::new(operations::imports::AddImport::new(
+            source.clone(),
+            specifiers.clone(),
+            default_import.clone(),
+            *type_only,
+        ))),
+        Operation::RemoveImport {
+            source,
+            specifiers,
+            ..
+        } => Ok(Box::new(operations::imports::RemoveImport::new(
+            source.clone(),
+            specifiers.clone(),
+        ))),
+        Operation::UpdateImportPaths {
+            old_path,
+            new_path,
+            match_mode,
+            ..
+        } => {
+            let mode = operations::update_paths::MatchMode::from_str(match_mode)?;
+            Ok(Box::new(operations::update_paths::UpdateImportPaths::new(
+                old_path.clone(),
+                new_path.clone(),
+                mode,
+            )))
+        }
+        Operation::AddParameter {
+            function_name,
+            param_name,
+            param_type,
+            default_value,
+            position,
+            ..
+        } => {
+            let pos = operations::signature::ParamPosition::from_str(position)?;
+            Ok(Box::new(operations::signature::AddParameter::new(
+                function_name.clone(),
+                param_name.clone(),
+                param_type.clone(),
+                default_value.clone(),
+                pos,
+            )))
+        }
+        Operation::RemoveParameter {
+            function_name,
+            param_name,
+            ..
+        } => Ok(Box::new(operations::signature::RemoveParameter::new(
+            function_name.clone(),
+            param_name.clone(),
+        ))),
+        Operation::MakeAsync {
+            function_name, ..
+        } => Ok(Box::new(operations::make_async::MakeAsync::new(
+            function_name.clone(),
+        ))),
+        Operation::WrapInBlock {
+            start_line,
+            end_line,
+            wrap_kind,
+            condition,
+            item,
+            iterable,
+            ..
+        } => {
+            let kind = match wrap_kind.as_str() {
+                "if" => {
+                    let cond = condition.clone().ok_or_else(|| OperationError::InvalidParams {
+                        message: "wrap_in_block with kind 'if' requires 'condition'".to_string(),
+                    })?;
+                    operations::wrap::WrapKind::If { condition: cond }
+                }
+                "try_catch" => {
+                    let param = condition.clone().unwrap_or_else(|| "error".to_string());
+                    operations::wrap::WrapKind::TryCatch { catch_param: param }
+                }
+                "for_of" => {
+                    let it = item.clone().ok_or_else(|| OperationError::InvalidParams {
+                        message: "wrap_in_block with kind 'for_of' requires 'item'".to_string(),
+                    })?;
+                    let iter = iterable.clone().ok_or_else(|| OperationError::InvalidParams {
+                        message: "wrap_in_block with kind 'for_of' requires 'iterable'".to_string(),
+                    })?;
+                    operations::wrap::WrapKind::ForOf { item: it, iterable: iter }
+                }
+                "block" => operations::wrap::WrapKind::Block,
+                other => {
+                    return Err(OperationError::InvalidParams {
+                        message: format!(
+                            "Invalid wrap_kind '{}', expected 'if', 'try_catch', 'for_of', or 'block'",
+                            other
+                        ),
+                    })
+                }
+            };
+            Ok(Box::new(operations::wrap::WrapInBlock::new(
+                *start_line,
+                *end_line,
+                kind,
+            )))
+        }
+        Operation::ExtractToVariable {
+            expression,
+            variable_name,
+            var_kind,
+            type_annotation,
+            ..
+        } => {
+            let kind = operations::extract::VarKind::from_str(var_kind)?;
+            Ok(Box::new(operations::extract::ExtractToVariable::new(
+                expression.clone(),
+                variable_name.clone(),
+                kind,
+                type_annotation.clone(),
+            )))
+        }
     }
 }

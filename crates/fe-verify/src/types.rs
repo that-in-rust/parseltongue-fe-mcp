@@ -3,14 +3,29 @@ use serde::Serialize;
 /// Summary of all verification steps.
 #[derive(Debug, Clone, Serialize, Default)]
 pub struct VerificationSummary {
+    pub status: String,
     pub lint: StepResult,
     pub types: StepResult,
     pub tests: TestStepResult,
+    /// Hint for the LLM agent on what to do next.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion: Option<String>,
 }
 
 impl VerificationSummary {
     pub fn is_passing(&self) -> bool {
         self.lint.status != "fail" && self.types.status != "fail" && self.tests.status != "fail"
+    }
+
+    /// Finalize the summary: set top-level status and suggestion based on step results.
+    pub fn finalize(&mut self) {
+        if self.is_passing() {
+            self.status = "pass".into();
+        } else {
+            self.status = "fail".into();
+            self.suggestion =
+                Some("Call fe_doctor with the errors above for structured fix suggestions".into());
+        }
     }
 }
 
@@ -91,7 +106,7 @@ pub struct DiagnosticItem {
     pub message: String,
     pub rule: Option<String>,
     pub severity: String,
-    pub hint: Option<String>,
+    pub suggestion: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

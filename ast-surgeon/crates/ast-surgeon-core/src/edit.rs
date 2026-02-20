@@ -202,11 +202,11 @@ mod tests {
             },
         ];
         let edit_set = EditSet::new(edits, source.len()).unwrap();
-        // Priority 0 (X) applied after priority 1 (Y) in reverse,
-        // so Y is inserted first, then X is inserted at the same position.
-        // Reverse order: Y at pos 1, then X at pos 1 → "aXYb"
+        // Reverse iteration: priority 1 (Y) applied first, then priority 0 (X)
+        // at the same position. X is inserted at pos 1 after Y was already
+        // inserted there, so X ends up before Y in the output.
         let result = edit_set.apply(source);
-        assert_eq!(result, "aYXb");
+        assert_eq!(result, "aXYb");
     }
 
     #[test]

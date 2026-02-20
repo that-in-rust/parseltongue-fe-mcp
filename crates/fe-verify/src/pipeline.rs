@@ -1,26 +1,48 @@
 use crate::detection::{DetectedTools, LinterKind, TestRunnerKind, TypeCheckerKind};
 use crate::error::VerifyError;
+use crate::parsers;
 use crate::runners::VerificationRunner;
 use crate::runners::{biome::BiomeRunner, eslint::ESLintRunner};
 use crate::runners::{jest::JestRunner, vitest::VitestRunner};
 use crate::runners::typescript::TypeScriptRunner;
-use crate::types::{VerificationSummary, StepResult, TestStepResult};
+use crate::types::{StepResult, TestStepResult, VerificationSummary};
 use std::path::Path;
+
+/// Which linter is active (needed to pick the right parser).
+#[derive(Debug, Clone, Copy)]
+enum ActiveLinter {
+    ESLint,
+    Biome,
+}
+
+/// Which test runner is active.
+#[derive(Debug, Clone, Copy)]
+enum ActiveTestRunner {
+    Jest,
+    Vitest,
+}
 
 /// Cascading verification pipeline: lint → types → tests.
 /// Early-terminates on error (no point running tests if types fail).
 pub struct VerificationPipeline {
     linter: Option<Box<dyn VerificationRunner>>,
+    active_linter: Option<ActiveLinter>,
     type_checker: Option<Box<dyn VerificationRunner>>,
     test_runner: Option<Box<dyn VerificationRunner>>,
+    active_test_runner: Option<ActiveTestRunner>,
 }
 
 impl VerificationPipeline {
     pub fn from_detected(tools: DetectedTools) -> Self {
-        let linter: Option<Box<dyn VerificationRunner>> = match tools.linter {
-            Some(LinterKind::ESLint { bin }) => Some(Box::new(ESLintRunner::new(bin))),
-            Some(LinterKind::Biome { bin }) => Some(Box::new(BiomeRunner::new(bin))),
-            None => None,
+        let (linter, active_linter): (Option<Box<dyn VerificationRunner>>, _) = match tools.linter
+        {
+            Some(LinterKind::ESLint { bin }) => {
+                (Some(Box::new(ESLintRunner::new(bin))), Some(ActiveLinter::ESLint))
+            }
+            Some(LinterKind::Biome { bin }) => {
+                (Some(Box::new(BiomeRunner::new(bin))), Some(ActiveLinter::Biome))
+            }
+            None => (None, None),
         };
 
         let type_checker: Option<Box<dyn VerificationRunner>> = match tools.type_checker {
@@ -28,25 +50,23 @@ impl VerificationPipeline {
             None => None,
         };
 
-        let test_runner: Option<Box<dyn VerificationRunner>> = match tools.test_runner {
-            Some(TestRunnerKind::Jest { bin }) => Some(Box::new(JestRunner::new(bin))),
-            Some(TestRunnerKind::Vitest { bin }) => Some(Box::new(VitestRunner::new(bin))),
-            None => None,
-        };
+        let (test_runner, active_test_runner): (Option<Box<dyn VerificationRunner>>, _) =
+            match tools.test_runner {
+                Some(TestRunnerKind::Jest { bin }) => {
+                    (Some(Box::new(JestRunner::new(bin))), Some(ActiveTestRunner::Jest))
+                }
+                Some(TestRunnerKind::Vitest { bin }) => {
+                    (Some(Box::new(VitestRunner::new(bin))), Some(ActiveTestRunner::Vitest))
+                }
+                None => (None, None),
+            };
 
         Self {
             linter,
+            active_linter,
             type_checker,
             test_runner,
-        }
-    }
-
-    /// Create an empty pipeline (no tools detected). Useful for testing.
-    pub fn empty() -> Self {
-        Self {
-            linter: None,
-            type_checker: None,
-            test_runner: None,
+            active_test_runner,
         }
     }
 
@@ -60,59 +80,53 @@ impl VerificationPipeline {
 
         // Step 1: Lint
         if let Some(linter) = &self.linter {
-            let result = linter.run(project_root, affected_files).await?;
-            if result.exit_code != 0 {
-                summary.lint = StepResult {
-                    status: "fail".to_string(),
-                    error_count: 1,
-                    warning_count: 0,
-                    errors: Vec::new(), // TODO: parse JSON output
-                };
+            let output = linter.run(project_root, affected_files).await?;
+            let step = match self.active_linter {
+                Some(ActiveLinter::ESLint) => parsers::eslint::parse_eslint_output(&output.stdout),
+                Some(ActiveLinter::Biome) => {
+                    // Biome JSON uses the same shape as ESLint for our purposes
+                    parsers::eslint::parse_eslint_output(&output.stdout)
+                }
+                None => StepResult::pass(),
+            };
+            let failed = step.status == "fail";
+            summary.lint = step;
+
+            if failed {
                 summary.types = StepResult::skipped("Skipped due to lint errors");
                 summary.tests = TestStepResult::skipped("Skipped due to lint errors");
+                summary.finalize();
                 return Ok(summary);
             }
-            summary.lint = StepResult::pass();
         }
 
         // Step 2: TypeCheck
         if let Some(type_checker) = &self.type_checker {
-            let result = type_checker.run(project_root, affected_files).await?;
-            if result.exit_code != 0 {
-                summary.types = StepResult {
-                    status: "fail".to_string(),
-                    error_count: 1,
-                    warning_count: 0,
-                    errors: Vec::new(), // TODO: parse tsc output
-                };
+            let output = type_checker.run(project_root, affected_files).await?;
+            let step = parsers::typescript::parse_tsc_output(&output.stdout);
+            let failed = step.status == "fail";
+            summary.types = step;
+
+            if failed {
                 summary.tests = TestStepResult::skipped("Skipped due to type errors");
+                summary.finalize();
                 return Ok(summary);
             }
-            summary.types = StepResult::pass();
         }
 
         // Step 3: Tests
         if let Some(test_runner) = &self.test_runner {
-            let result = test_runner.run(project_root, affected_files).await?;
-            if result.exit_code != 0 {
-                summary.tests = TestStepResult {
-                    status: "fail".to_string(),
-                    ran: 0,
-                    passed: 0,
-                    failed: 1,
-                    failures: Vec::new(), // TODO: parse test output
-                };
-                return Ok(summary);
-            }
-            summary.tests = TestStepResult {
-                status: "pass".to_string(),
-                ran: 0,
-                passed: 0,
-                failed: 0,
-                failures: Vec::new(),
+            let output = test_runner.run(project_root, affected_files).await?;
+            summary.tests = match self.active_test_runner {
+                Some(ActiveTestRunner::Jest) => parsers::jest::parse_jest_output(&output.stdout),
+                Some(ActiveTestRunner::Vitest) => {
+                    parsers::vitest::parse_vitest_output(&output.stdout)
+                }
+                None => TestStepResult::default(),
             };
         }
 
+        summary.finalize();
         Ok(summary)
     }
 
